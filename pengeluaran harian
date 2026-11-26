@@ -1,0 +1,286 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buku Harian Keuangan</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+ font-family:'Segoe UI',sans-serif;
+ background:#fff6f2;color:#55433f;padding:20px;
+}
+.container{max-width:850px;margin:auto}
+header{
+ background:linear-gradient(135deg,#f5c8bd,#f6dfd1);
+ padding:35px 20px;border-radius:25px;text-align:center;
+ margin-bottom:22px;
+}
+header h1{font-size:30px;margin-bottom:8px}
+header p{color:#795e58}
+.date{font-size:13px;margin-top:12px}
+h3{margin-bottom:15px}
+.stats{
+ display:grid;grid-template-columns:repeat(3,1fr);
+ gap:12px;margin-bottom:20px;
+}
+.card{
+ background:white;padding:18px;border-radius:17px;
+ box-shadow:0 3px 12px #e9dcd6;
+}
+.card p{font-size:12px;color:#927c74}
+.card h2{font-size:18px;margin-top:10px;overflow-wrap:anywhere}
+.income{color:#6a9b7d}
+.expense{color:#d27f79}
+.balance{color:#ba8b69}
+.section{
+ background:white;padding:22px;border-radius:20px;
+ margin-bottom:20px;box-shadow:0 3px 12px #eee0da;
+}
+input,select{
+ width:100%;padding:12px;margin:7px 0 13px;
+ border:1px solid #eadbd3;border-radius:10px;
+ background:#fffaf7;color:#55433f;
+}
+label{font-size:13px;font-weight:600}
+button{
+ border:none;border-radius:10px;padding:12px 17px;
+ background:#d99c8b;color:white;font-weight:bold;
+ cursor:pointer;
+}
+button:hover{opacity:.8}
+.full{width:100%}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:17px}
+.tabs button{background:#f8e8e1;color:#926c60}
+.tabs button.active{background:#d99c8b;color:white}
+.transaction{
+ display:flex;justify-content:space-between;align-items:center;
+ gap:10px;padding:14px 0;border-bottom:1px solid #f1e6e0;
+}
+.transaction:last-child{border:0}
+.transaction small{color:#a18a80;display:block;margin-top:5px}
+.amount{font-weight:bold;text-align:right;overflow-wrap:anywhere}
+.delete{background:#b98c83;padding:7px 10px;margin-top:7px;font-size:11px}
+.empty{text-align:center;padding:25px;color:#a18a80}
+.progress{
+ height:12px;background:#f3e6df;border-radius:20px;
+ overflow:hidden;margin-top:10px;
+}
+.fill{height:100%;background:#d99c8b;width:0%;transition:.3s}
+footer{text-align:center;color:#a18a80;font-size:12px;padding:20px}
+@media(max-width:500px){
+ body{padding:12px}
+ .stats{gap:7px}
+ .card{padding:12px 8px}
+ .card h2{font-size:14px}
+ header h1{font-size:25px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+ <h1>♡ Buku Harian Pengeluaran</h1>
+ <p>Catat pengeluaranmu, atur keuanganmu.</p>
+ <div class="date" id="today"></div>
+</header>
+
+<div class="stats">
+ <div class="card">
+  <p>Total Pemasukan</p>
+  <h2 class="income" id="income">Rp0</h2>
+ </div>
+ <div class="card">
+  <p>Total Pengeluaran</p>
+  <h2 class="expense" id="expense">Rp0</h2>
+ </div>
+ <div class="card">
+  <p>Sisa Uang</p>
+  <h2 class="balance" id="balance">Rp0</h2>
+ </div>
+</div>
+
+<div class="section">
+ <h3>♡ Catatan Keuangan Baru</h3>
+
+ <label>Jenis transaksi</label>
+ <select id="type">
+  <option value="expense">Pengeluaran</option>
+  <option value="income">Pemasukan</option>
+ </select>
+
+ <label>Nama transaksi</label>
+ <input id="name" placeholder="Contoh: Beli es teh">
+
+ <label>Kategori</label>
+ <select id="category">
+  <option>Makanan & Minuman</option>
+  <option>Jajan</option>
+  <option>Transportasi</option>
+  <option>Sekolah</option>
+  <option>Belanja</option>
+  <option>Hiburan</option>
+  <option>Tabungan</option>
+  <option>Gaji / Uang Saku</option>
+  <option>Lainnya</option>
+ </select>
+
+ <label>Nominal (Rp)</label>
+ <input id="amount" type="number" min="1" placeholder="Contoh: 10000">
+
+ <label>Tanggal</label>
+ <input id="date" type="date">
+
+ <button class="full" onclick="addTransaction()">+ Simpan Catatan</button>
+</div>
+
+<div class="section">
+ <h3>♡ Ringkasan Pengeluaran</h3>
+ <p id="summaryText">Belum ada pengeluaran.</p>
+ <div class="progress">
+  <div class="fill" id="fill"></div>
+ </div>
+ <small id="percentage">0% dari pemasukan digunakan</small>
+</div>
+
+<div class="section">
+ <h3>♡ Riwayat Transaksi</h3>
+
+ <div class="tabs">
+  <button class="active" onclick="filter('all',this)">Semua</button>
+  <button onclick="filter('income',this)">Pemasukan</button>
+  <button onclick="filter('expense',this)">Pengeluaran</button>
+ </div>
+
+ <div id="history"></div>
+</div>
+
+<footer>
+ Made with ♡ | My Personal Finance Diary
+</footer>
+</div>
+
+<script>
+let records=JSON.parse(localStorage.getItem("financeDiary")||"[]");
+let currentFilter="all";
+
+const rupiah=n=>"Rp"+Number(n).toLocaleString("id-ID");
+
+document.getElementById("today").textContent=
+ new Date().toLocaleDateString("id-ID",{
+ weekday:"long",day:"numeric",month:"long",year:"numeric"
+ });
+
+document.getElementById("date").value=
+ new Date().toLocaleDateString("en-CA");
+
+function save(){
+ localStorage.setItem("financeDiary",JSON.stringify(records));
+}
+
+function addTransaction(){
+ const name=document.getElementById("name").value.trim();
+ const amount=Number(document.getElementById("amount").value);
+ const date=document.getElementById("date").value;
+ const type=document.getElementById("type").value;
+ const category=document.getElementById("category").value;
+
+ if(!name||!date||!Number.isFinite(amount)||amount<=0){
+  alert("Lengkapi semua data dengan benar!");
+  return;
+ }
+
+ records.push({
+  id:Date.now()+Math.random(),
+  name,amount,date,type,category
+ });
+
+ save();
+ document.getElementById("name").value="";
+ document.getElementById("amount").value="";
+ render();
+}
+
+function filter(value,btn){
+ currentFilter=value;
+ document.querySelectorAll(".tabs button")
+ .forEach(b=>b.classList.remove("active"));
+ btn.classList.add("active");
+ render();
+}
+
+function removeRecord(id){
+ if(confirm("Hapus catatan transaksi ini?")){
+  records=records.filter(r=>r.id!==id);
+  save();
+  render();
+ }
+}
+
+function render(){
+ const incomes=records.filter(r=>r.type==="income")
+ .reduce((a,b)=>a+b.amount,0);
+
+ const expenses=records.filter(r=>r.type==="expense")
+ .reduce((a,b)=>a+b.amount,0);
+
+ const balance=incomes-expenses;
+
+ document.getElementById("income").textContent=rupiah(incomes);
+ document.getElementById("expense").textContent=rupiah(expenses);
+ document.getElementById("balance").textContent=rupiah(balance);
+
+ const percent=incomes>0?Math.round(expenses/incomes*100):0;
+ document.getElementById("fill").style.width=
+ Math.min(percent,100)+"%";
+
+ document.getElementById("percentage").textContent=
+ percent+"% dari pemasukan digunakan";
+
+ document.getElementById("summaryText").textContent=
+ expenses===0?"Belum ada pengeluaran.":
+ "Kamu sudah menggunakan "+rupiah(expenses)+
+ " untuk pengeluaran.";
+
+ const filtered=records
+ .filter(r=>currentFilter==="all"||r.type===currentFilter)
+ .sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+
+ const history=document.getElementById("history");
+
+ if(!filtered.length){
+  history.innerHTML='<div class="empty">♡ Belum ada catatan transaksi.</div>';
+  return;
+ }
+
+ history.innerHTML=filtered.map(r=>`
+  <div class="transaction">
+   <div>
+    <strong>${escapeHTML(r.name)}</strong>
+    <small>${escapeHTML(r.category)} · ${escapeHTML(r.date)}</small>
+   </div>
+   <div>
+    <div class="amount ${r.type==="income"?"income":"expense"}">
+     ${r.type==="income"?"+":"-"}${rupiah(r.amount)}
+    </div>
+    <button class="delete" onclick="removeRecord(${r.id})">
+     Hapus
+    </button>
+   </div>
+  </div>
+ `).join("");
+}
+
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",
+ '"':"&quot;","'":"&#39;"
+ })[c]);
+}
+
+render();
+</script>
+</body>
+</html>
